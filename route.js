@@ -95,6 +95,50 @@ router.get('/alluserInfo',(req,res)=>{
     }
    
 })
+// 修改用户信息
+router.post('/changeuserInfo',(req,res)=>{
+    const value = req.body
+    const sql = `select * from user where username='${value.username}'`
+    conn.query(sql,(err,result)=>{
+        let password
+        if(result){
+            password = result[0].password
+        }
+        if(value.oldpassword){
+            if(value.oldpassword!==password){
+                return res.json({status:500,message:'旧密码错误，请重新输入'})
+            }       
+            else if(!value.newpassword||!value.confirmnewpassword){
+                return res.json({status:500,message:'请完善密码信息'})
+            } else if(value.newpassword!== value.confirmnewpassword){
+                return res.json({status:500,message:'两次密码不匹配'})
+            }
+            else{
+                const sqlStr = `update user set telPhone='${value.telPhone}' and password='${value.newpassword}' where username ='${value.username}' `
+                conn.query(sqlStr,(err,results)=>{
+                    if(err){
+                        return res.json({status:500,message:'修改失败'})
+                    }
+                    else{
+                        return res.json({status:200,message:'修改成功'})
+                    }
+                })
+            }
+        }else{
+            const sqlStr = `update user set telPhone='${value.telPhone}' where username ='${value.username}' `
+            conn.query(sqlStr,(err,results)=>{
+                if(err){
+                    return res.json({status:500,message:'修改失败'})
+                }
+                else{
+                    return res.json({status:200,message:'修改成功'})
+                }
+            })
+        }
+    })
+    
+   
+})
 // 操作黑名单
 router.post('/opertionBlack',(req,res)=>{
     const {userId,isBlack} = req.body
@@ -145,10 +189,13 @@ router.get('/userInfo',(req,res)=>{
 router.get('/carPoolingInfo',function(req,res){
     const sqlStr = 'select * from carpoolinformation '
     if(JSON.stringify(req.query)!=='{}'){
-        const {startPoint,endPoint} = req.query
+        const {startPoint,endPoint,initiator} = req.query
         let searchstartSql
         if(startPoint&&endPoint){
             searchstartSql = `select * from carpoolinformation where startPoint = '${startPoint}' and endPoint='${endPoint}' `
+        }
+        else if(initiator){
+            searchstartSql = `select * from carpoolinformation where initiator = '${initiator}'  `
         }
         else{
             searchstartSql = `select * from carpoolinformation where startPoint = '${startPoint}' or endPoint='${endPoint}' `
@@ -164,7 +211,21 @@ router.get('/carPoolingInfo',function(req,res){
     }
     
 })
-
+// 删除拼车信息
+router.post('/deleteCarInfo',(req,res)=>{
+    const modSql = `delete from carpoolinformation  where carInfoid = ?`
+    const arr = req.body.carInfoid
+    arr.forEach(item=>{
+        conn.query(modSql,item,(err,reuslt)=>{
+            if(err){
+                return res.json({status:500,message:'删除失败'})
+            }
+            else{
+                return res.json({status:200,message:'删除成功'})
+            }
+        })
+    })
+})
 //参与拼车
 router.post('/joinCarpool', function(req, res) {
     const {id,name} = req.body
@@ -205,15 +266,42 @@ router.post('/newCarpoolInfo',(req,res)=>{
     const sqlStr = 'insert carpoolinformation set ?'
     conn.query(sqlStr,carInfo,(err,results)=>{
         if(err){
-            return res.json({status:200,message:'新建失败',code:2})
+            return res.json({status:500,message:'新建失败'})
         }
         else{
-            return res.json({status:200,message:'新建成功',code:0})
+            return res.json({status:200,message:'新建成功'})
         }
     })
 })
 
-
+//新建公告信息
+router.post('/newNoticeInfo',(req,res)=>{
+    const forumInfo = req.body
+    const sqlStr = 'insert notice set ?'
+    conn.query(sqlStr,forumInfo,(err,results)=>{
+        if(err){
+            return res.json({status:500,message:'新建失败'})
+        }
+        else{
+            return res.json({status:200,message:'新建成功'})
+        }
+    })
+})
+// 删除公告信息
+router.post('/deleteNoticeInfo',(req,res)=>{
+    const modSql = `delete from notice  where noticeId = ?`
+    const arr = req.body.noticeId
+    arr.forEach(item=>{
+        conn.query(modSql,item,(err,reuslt)=>{
+            if(err){
+                return res.json({status:500,message:'删除失败'})
+            }
+            else{
+                return res.json({status:200,message:'删除成功'})
+            }
+        })
+    })
+})
 // 获取公告信息
 router.get('/notcieInfo',(req,res)=>{
     const Sql = `select * from notice`
@@ -282,7 +370,22 @@ router.post('/newForumInfo',(req,res)=>{
         }
     })
 })
-
+// 删除帖子信息
+router.post('/deleteForumInfo',(req,res)=>{
+    const modSql = `delete from forum  where forumId = ?`
+    const arr = req.body.forumId
+    arr.forEach(item=>{
+        conn.query(modSql,item,(err,reuslt)=>{
+            if(err){
+                console.log(err)
+                return res.json({status:500,message:'删除失败'})
+            }
+            else{
+                return res.json({status:200,message:'删除成功'})
+            }
+        })
+    })
+})
 //获取评论信息
 router.get('/commentInfo',(req,res)=>{
     const Sql = `select * from comment where forumId='${req.query.id}'`
@@ -307,7 +410,7 @@ router.post('/addcommentInfo',(req,res)=>{
     const Sql = `select * from forum where forumId='${params.forumId}'`
     conn.query(Sql,(err,result)=>{
         const num = result[0].commentNum+1
-        const insertSql = `update forum set commentNum='${num}'`
+        const insertSql = `update forum set commentNum='${num}' where forumId='${params.forumId}'`
         conn.query(insertSql,(err,results)=>{
         })
     })
